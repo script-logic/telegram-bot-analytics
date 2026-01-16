@@ -124,7 +124,7 @@ def get_settings() -> AppConfig:
     Создает конфигурацию один раз и кэширует её (Singleton).
     """
     try:
-        config = AppConfig()  # type: ignore #TODO
+        config = AppConfig()  # type: ignore
 
         if config.debug:
             print("✅ Config loaded from .env")
