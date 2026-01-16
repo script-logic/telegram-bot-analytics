@@ -15,7 +15,7 @@
 
 ### 1. Клонирование и настройка
 ```bash
-git clone <репозиторий>
+git clone https://github.com/script-logic/telegram-bot-analytics.git
 cd telegram_bot_analytics
 cp .env.example .env
 ```
