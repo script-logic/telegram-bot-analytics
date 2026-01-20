@@ -35,7 +35,7 @@ EPILOG = "\n".join(
         "  %(prog)s --api                # Google Sheets API analysis",
         "  %(prog)s --api --llm          # API + LLM analysis",
         "  %(prog)s --csv data.csv       # CSV file analysis",
-        "  %(prog)s --api --test         # Connection test only",
+        "  %(prog)s --api --llm --test   # Connection test only",
         "  %(prog)s --api --llm --debug  # With debugging",
     ]
 )
@@ -142,7 +142,6 @@ def main():
 
         if args.api:
             printer.print_info("Testing Google Sheets...")
-
             try:
                 client = GoogleSheetsClient()
                 if client.test_connection():
@@ -153,15 +152,15 @@ def main():
             except Exception as e:
                 printer.print_error(f"Google Sheets: {e}")
 
-        printer.print_info("Testing LLM...")
+        if args.llm:
+            printer.print_info("Testing LLM...")
+            try:
+                llm_processor = LLMProcessor()
+                if llm_processor.test_connection():
+                    printer.print_success("LLM: OK")
 
-        try:
-            llm_processor = LLMProcessor()
-            if llm_processor.test_connection():
-                printer.print_success("LLM: OK")
-
-        except Exception as e:
-            printer.print_error(f"LLM: {e}")
+            except Exception as e:
+                printer.print_error(f"LLM: {e}")
 
         printer.print_success("Testing completed")
         return

@@ -82,6 +82,7 @@ poetry run python main.py --csv data.csv
 
 # Connection test only
 poetry run python main.py --api --test
+poetry run python main.py --api --llm --test
 ```
 
 ### Command Line Parameters
