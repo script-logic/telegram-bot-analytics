@@ -287,6 +287,7 @@ google_sheets_llm_analyzer/
 ├── google_sheets_llm_analyzer_package/  # Source code
 │   ├── __init__.py                      # Package file
 │   ├── config.py                # Configuration with Pydantic
+│   ├── console_printer.py       # Fine formatted console output
 │   ├── google_sheets_client.py  # Google Sheets client
 │   ├── data_analyzer.py         # Data analysis
 │   └── llm_processor.py         # LLM integration
