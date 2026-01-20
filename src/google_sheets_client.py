@@ -1,9 +1,9 @@
 """
-Клиент для работы с Google Sheets API.
+Client for working with Google Sheets API.
 """
 
 import json
-from typing import Any, List
+from typing import Any
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -12,18 +12,18 @@ from config import config
 
 
 class GoogleSheetsError(Exception):
-    """Базовое исключение для ошибок Google Sheets."""
+    """Base exception for Google Sheets errors."""
 
     pass
 
 
 class GoogleSheetsClient:
-    """Клиент для работы с Google Sheets API."""
+    """Client for working with Google Sheets API."""
 
     def __init__(self):
         if config is None:
             raise GoogleSheetsError(
-                "Конфигурация не загружена. Проверьте .env файл."
+                "Configuration not loaded. Check .env file."
             )
 
         self.config = config
@@ -32,10 +32,10 @@ class GoogleSheetsClient:
         try:
             self.credentials = config.get_google_credentials()
         except Exception as e:
-            raise GoogleSheetsError(f"Ошибка загрузки credentials: {e}")
+            raise GoogleSheetsError(f"Error loading credentials: {e}") from e
 
     def _get_service(self):
-        """Создает и возвращает сервис Google Sheets."""
+        """Creates and returns Google Sheets service."""
         if self._service is None:
             try:
                 self._service = build(
@@ -46,20 +46,20 @@ class GoogleSheetsClient:
                 )
             except Exception as e:
                 raise GoogleSheetsError(
-                    f"Ошибка создания сервиса Google Sheets: {e}"
-                )
+                    f"Error creating Google Sheets service: {e}"
+                ) from e
 
         return self._service
 
-    def fetch_data(self) -> List[List[Any]]:
+    def fetch_data(self) -> list[list[Any]]:
         """
-        Получает данные из Google Таблицы.
+        Retrieves data from Google Sheet.
 
         Returns:
-            Список строк таблицы (первая строка - заголовки)
+            List of table rows (first row - headers)
 
         Raises:
-            GoogleSheetsError: При ошибке подключения или чтения
+            GoogleSheetsError: On connection or reading error
         """
         try:
             service = self._get_service()
@@ -81,10 +81,10 @@ class GoogleSheetsClient:
             values = result.get("values", [])
 
             if not values:
-                print("📭 Таблица пуста или не содержит данных.")
+                print("📭 Sheet is empty or contains no data.")
                 return []
 
-            print(f"✅ Загружено {len(values)} строк из Google Таблицы")
+            print(f"✅ Loaded {len(values)} rows from Google Sheet")
 
             return values
 
@@ -94,51 +94,52 @@ class GoogleSheetsClient:
 
             if e.resp.status == 404:
                 raise GoogleSheetsError(
-                    "Таблица не найдена. Проверьте SPREADSHEET_ID:"
-                    f" {error_msg}"
-                )
+                    f"Sheet not found. Check SPREADSHEET_ID: {error_msg}"
+                ) from e
             elif e.resp.status == 403:
                 raise GoogleSheetsError(
-                    "Нет доступа к таблице. Убедитесь, что "
+                    "No access to sheet. Ensure that "
                     f"'{config.get_service_email()}' "
-                    f"имеет доступ к таблице. Ошибка: {error_msg}"
-                )
+                    f"has access to the sheet. Error: {error_msg}"
+                ) from e
             else:
                 raise GoogleSheetsError(
-                    f"Ошибка Google Sheets API ({e.resp.status}): {error_msg}"
-                )
+                    f"Google Sheets API error ({e.resp.status}): {error_msg}"
+                ) from e
         except Exception as e:
-            raise GoogleSheetsError(f"Ошибка при чтении данных: {e}")
+            raise GoogleSheetsError(f"Error reading data: {e}") from e
 
     def test_connection(self) -> bool:
         """
-        Проверяет подключение к Google Sheets.
+        Tests connection to Google Sheets.
 
         Returns:
-            bool: True если подключение успешно
+            bool: True if connection successful
         """
         try:
             service = self._get_service()
             sheet = service.spreadsheets()
 
-            # Получаем метаданные таблицы
+            # Get spreadsheet metadata
             result = sheet.get(
-                spreadsheetId=self.config.spreadsheet_id
+                spreadsheetId=self.config.spreadsheet_id,
             ).execute()
 
-            title = result.get("properties", {}).get("title", "Неизвестно")
+            title = result.get("properties", {}).get("title", "Unknown")
             sheets = result.get("sheets", [])
             sheet_names = [
-                sheet.get("properties", {}).get("title", "Без имени")
+                sheet.get("properties", {}).get("title", "Unnamed")
                 for sheet in sheets
             ]
 
-            print("✅ Подключение успешно!")
-            print(f"   Таблица: '{title}'")
-            print(f"   Доступные листы: {', '.join(sheet_names)}")
-            print(f"   Ищем лист: '{self.config.sheet_name}'")
+            print(
+                "✅ Connection successful!\n"
+                f"   Spreadsheet: '{title}'\n"
+                f"   Available sheets: {', '.join(sheet_names)}\n"
+                f"   Looking for sheet: '{self.config.sheet_name}'\n"
+            )
 
-            # Проверяем существование указанного листа
+            # Check if specified sheet exists
             target_sheet_exists = any(
                 sheet.get("properties", {}).get("title")
                 == self.config.sheet_name
@@ -147,78 +148,81 @@ class GoogleSheetsClient:
 
             if not target_sheet_exists:
                 print(
-                    f"⚠️  Лист '{self.config.sheet_name}' не найден в таблице"
+                    f"⚠️  Sheet '{self.config.sheet_name}' not found in"
+                    " spreadsheet"
                 )
-                print(f"   Используйте один из: {', '.join(sheet_names)}")
+                print(f"   Use one of: {', '.join(sheet_names)}")
 
             return True
 
         except HttpError as e:
             if e.resp.status == 404:
-                print("❌ Таблица не найдена. Проверьте SPREADSHEET_ID")
+                print("❌ Spreadsheet not found. Check SPREADSHEET_ID")
             elif e.resp.status == 403:
-                print("❌ Нет доступа к таблице")
-                print(
-                    "   Предоставьте доступ для:"
-                    f" {config.get_service_email()}"
-                )
+                print("❌ No access to spreadsheet")
+                print(f"   Grant access to: {config.get_service_email()}")
             else:
-                print(f"❌ Ошибка подключения: {e}")
+                print(f"❌ Connection error: {e}")
             return False
         except Exception as e:
-            print(f"❌ Ошибка подключения: {e}")
+            print(f"❌ Connection error: {e}")
             return False
 
 
 class CSVReader:
-    """Альтернативный источник данных из CSV-файла."""
+    """Alternative data source from CSV file."""
 
     @staticmethod
-    def read_data(filepath: str) -> List[List[str]]:
+    def read_data(filepath: str) -> list[list[str]]:
         """
-        Читает данные из CSV-файла.
+        Reads data from CSV file.
 
         Args:
-            filepath: Путь к CSV-файлу
+            filepath: Path to CSV file
 
         Returns:
-            Список строк таблицы
+            List of table rows
 
         Raises:
-            FileNotFoundError: Если файл не найден
-            ValueError: При ошибке чтения CSV
+            FileNotFoundError: If file not found
+            ValueError: On CSV reading error
         """
         import csv
 
         try:
-            with open(filepath, "r", encoding="utf-8") as file:
+            with open(
+                filepath,
+                encoding="utf-8",
+            ) as file:
                 reader = csv.reader(file)
                 data = list(reader)
 
             if not data:
-                print("📭 CSV-файл пуст.")
+                print("📭 CSV file is empty.")
                 return []
 
-            print(f"✅ Загружено {len(data)} строк из CSV-файла")
+            print(f"✅ Loaded {len(data)} rows from CSV file")
             return data
 
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Файл не найден: {filepath}")
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"File not found: {filepath}") from e
         except UnicodeDecodeError:
-            # Пробуем другие кодировки
+            # Try other encodings
             try:
-                with open(filepath, "r", encoding="cp1251") as file:
+                with open(
+                    filepath,
+                    encoding="cp1251",
+                ) as file:
                     reader = csv.reader(file)
                     data = list(reader)
                 print(
-                    f"✅ Загружено {len(data)} строк из CSV-файла (кодировка"
+                    f"✅ Loaded {len(data)} rows from CSV file (encoding"
                     " cp1251)"
                 )
                 return data
-            except ValueError:
+            except ValueError as e:
                 raise ValueError(
-                    f"Не удалось прочитать файл {filepath}. "
-                    "Проверьте кодировку файла."
-                )
+                    f"Could not read file {filepath}. Check file encoding."
+                ) from e
         except Exception as e:
-            raise ValueError(f"Ошибка чтения CSV: {e}")
+            raise ValueError(f"CSV reading error: {e}") from e

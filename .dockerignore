@@ -32,6 +32,7 @@ env/
 # IDEs
 .vscode/
 .idea/
+.ruff_cache
 
 # OS-specific
 *.DS_Store

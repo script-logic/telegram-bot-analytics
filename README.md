@@ -1,301 +1,332 @@
-# 🤖 Telegram Bot Analytics
+# 🤖 Google Sheets LLM Analyzer
 
-Профессиональная система анализа заявок из Telegram-бота с интеграцией Google Sheets и LLM.
+Professional data analysis system for Google Sheets with LLM integration for processing text entries via API.
 
-## ✨ Особенности
+## ✨ Features
 
-- 📊 **Анализ статистики** заявок по категориям
-- 🔗 **Интеграция с Google Sheets** через API
-- 🤖 **AI-анализ** текста заявок через OpenRouter/OpenAI
-- 🐳 **Готовый Docker образ** для быстрого развертывания
-- 🔐 **Безопасное хранение** credentials в Base64
-- ⚙️ **Типобезопасная конфигурация** через Pydantic v2
+- 📊 **Data analysis** from Google Sheets with categorization support
+- 🔗 **Google Sheets integration** via API
+- 🤖 **AI analysis** of text entries via OpenRouter/OpenAI
+- 🐳 **Ready Docker image** for quick deployment
+- 🔐 **Secure credentials storage** in Base64 format
+- ⚙️ **Type-safe configuration** via Pydantic v2
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
-### 1. Клонирование и настройка
+### 1. 📦 Installation with Poetry
+
+#### 1.1 Prerequisites
+- Python 3.11 or higher
+- [Poetry](https://python-poetry.org/) installed globally
+- Google Cloud Project with Sheets API enabled
+- (Optional) OpenRouter API key for LLM features
+
+#### 1.2 Installation Steps
 ```bash
-git clone https://github.com/script-logic/telegram-bot-analytics.git
-cd telegram_bot_analytics
+# Clone repository
+git clone https://github.com/script-logic/google-sheets-llm-analyzer.git
+cd google-sheets-llm-analyzer
+
+# Install dependencies
+poetry install
+
+# Copy environment configuration
 cp .env.example .env
+
+# Edit .env file with your credentials
 ```
 
-### 2. Настройка Google Sheets API
+### 2. Google Sheets API Setup
 
-#### 2.1 Создание Service Account
-1. Перейдите в [Google Cloud Console](https://console.cloud.google.com)
-2. Создайте новый проект в Google Cloud или выберите существующий
-3. Включите **Google Sheets API** для проекта
-4. Создайте Service Account и скачайте JSON-ключ
-5. Предоставьте доступ к вашей таблице Google Sheets для email из JSON
+#### 2.1 Creating Service Account
+1. Go to [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project in Google Cloud or select an existing one
+3. Enable **Google Sheets API** for the project
+4. Create a Service Account and download the JSON key
+5. Grant access to your Google Sheet for the email from the JSON file
 
-#### 2.2 Кодирование credentials в Base64
-Для удобства и дополнительной безопасности храним JSON-ключ не в отдельном
-файле JSON, а в удобном формате base64 в файле .env
+#### 2.2 Encoding Credentials to Base64
+For convenience and additional security, we store the JSON key not as a separate JSON file but in base64 format in the .env file
 ```bash
-# Используйте готовый скрипт для кодирования service-account.json
-python scripts/encode_credentials.py путь/к/service-account.json
+# Use the provided script to encode service-account.json
+python scripts/encode_credentials.py path/to/service-account.json
 
-# Скопируйте вывод в .env файл
+# Copy the output to the .env file
 # GOOGLE_CREDENTIALS_BASE64=eyJ0eXBlIjoic2V...
 ```
 
-#### 2.3 Получение ID таблицы и названия листа
-- URL вашей таблицы: `https://docs.google.com/spreadsheets/d/ВАШ_ID/edit`
-- Скопируйте часть между `/d/` и `/edit`
-- Укажите в `.env`: `SPREADSHEET_ID=ваш_id_таблицы_здесь`
-- Откройте таблицу в браузере и скопируйте название листа внизу слева
-- Укажите в `.env`: `SHEET_NAME=название_листа_в_таблице`
+#### 2.3 Getting Spreadsheet ID and Sheet Name
+- Your spreadsheet URL: `https://docs.google.com/spreadsheets/d/YOUR_ID/edit`
+- Copy the part between `/d/` and `/edit`
+- Specify in `.env`: `SPREADSHEET_ID=your_spreadsheet_id_here`
+- Open the spreadsheet in a browser and copy the sheet name from the bottom left
+- Specify in `.env`: `SHEET_NAME=sheet_name_in_spreadsheet`
 
-### 3. Настройка OpenRouter (опционально)
-1. Получите API ключ на [OpenRouter](https://openrouter.ai/)
-2. Укажите в `.env`: `OPENROUTER_API_KEY=ваш_api_ключ_здесь`
-3. Выберите модель, по умолчанию используется бесплатная `mistralai/devstral-2512:free`
+### 3. OpenRouter Setup (Optional)
+1. Get an API key at [OpenRouter](https://openrouter.ai/)
+2. Specify in `.env`: `OPENROUTER_API_KEY=your_api_key_here`
+3. Choose a model, the free `mistralai/devstral-2512:free` is used by default
 
-## 💻 Использование
+## 💻 Usage
 
-### Базовые команды
+### Basic Commands
 ```bash
-# Анализ через Google Sheets API
-python main.py --api
+# Analysis via Google Sheets API
+poetry run python main.py --api
 
-# Анализ через Google Sheets API + анализ LLM
-python main.py --api --llm
+# Analysis via Google Sheets API + LLM analysis
+poetry run python main.py --api --llm
 
-# Анализ из CSV файла
-python main.py --csv данные.csv
+# Analysis from CSV file
+poetry run python main.py --csv data.csv
 
-# Только тест подключения
-python main.py --api --test
+# Connection test only
+poetry run python main.py --api --test
 ```
 
-### Параметры командной строки
-| Параметр | Описание |
-|----------|----------|
-| `--api` | Использовать Google Sheets API |
-| `--csv <файл>` | Использовать CSV файл |
-| `--llm` | Включить анализ через LLM |
-| `--test` | Только тест подключения |
-| `--raw` | Включить показ сырых данных |
-| `--debug` | Режим отладки |
+### Command Line Parameters
 
+| Parameter | Description |
+|-----------|-------------|
+| `--api` | Use Google Sheets API |
+| `--csv <file>` | Use CSV file |
+| `--llm` | Enable LLM analysis |
+| `--test` | Connection test only |
+| `--raw` | Show raw data |
+| `--debug` | Debug mode |
 
-### Пример вывода
+### Sample Output
+
 ```
-python main.py --api --llm --raw --debug
+poetry run python main.py --api --llm --raw --debug
 ```
+
 ```
 ✅ Config loaded from .env
    Spreadsheet: 1TIKSAwTuIgsHvNoZGlZi6Pr8_mRtRpB1sEzxoh10V-8
    Service Email: telegrambot@telegram-bot-analytics.iam.gserviceaccount.com
 ╭─────────────────────────────────────────────────────────────────────────────╮
 │                                                                             │
-╰─ 📊 Telegram Bot Analytics 🔗 Интеграция с Google Sheets 💡 Стат... ───────╯
+╰─ 📊 Google Sheets LLM Analyzer 🔗 Google Sheets Integration 💡 Analys... ─╯
 ╭──────────────────────╮
-│ Конфигурация системы │
+│ System Configuration │
 ╰──────────────────────╯
- Google Таблица     1TIKSAwTuIgsHvNoZGlZi6Pr8_mRtRpB1sEzxoh10V-8
- Лист               Цвета и числа
- Столбец категорий  Столбец 3
- LLM ключ           Введён
- Режим отладки      Да
+ Google Sheet     1TIKSAwTuIgsHvNoZGlZi6Pr8_mRtRpB1sEzxoh10V-8
+ Sheet            Sheetj1
+ Category column  Column 3
+ LLM key          Provided
+ Debug mode       Yes
 
-✅ Загружено 7 строк из Google Таблицы
-⠴ ✅ Данные загружены
+✅ Loaded 7 rows from Google Sheet
+⠴ ✅ Data loaded
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│📄Сырые данные                                                                │
+│📄 Raw Data                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-0: ['Номер заявки', 'Дата и время', 'Категория', 'Выбор', 'Дата обработки', 'Статус']
-1: ['1', '15.01.2026 8:06:16', 'Техподдержка', 'Почему io запросы не асинхронные?', '15.01.2026', 'Новая']
-2: ['2', '16.01.2026 0:31:32', 'Консультация', 'Что такое ошибка с кодом 401', '16.01.2026', 'Новая']
-3: ['3', '16.01.2026 0:31:41', 'Техподдержка', 'Как получить JSON файл для Service Account', '16.01.2026', 'Новая']
-4: ['4', '16.01.2026 0:32:49', 'Консультация', 'Почему код такой кривой?', '16.01.2026', 'Новая']
-5: ['5', '16.01.2026 1:22:57', 'Консультация', 'Почему код не использует не FastAPI?', '16.01.2026', 'Новая']
-6: ['6', '16.01.2026 4:17:59', 'Консультация', 'Почему код так плохо типизирован?', '16.01.2026', 'Новая']   
+0: ['Request ID', 'Date and Time', 'Category', 'Choice', 'Processing Date', 'Status']
+1: ['1', '15.01.2026 8:06:16', 'Tech Support', 'Why are io requests not asynchronous?', '15.01.2026', 'New']
+2: ['2', '16.01.2026 0:31:32', 'Consultation', 'What is error with code 401', '16.01.2026', 'New']
+3: ['3', '16.01.2026 0:31:41', 'Tech Support', 'How to get JSON file for Service Account', '16.01.2026', 'New']
+4: ['4', '16.01.2026 0:32:49', 'Consultation', 'Why is the code so messy?', '16.01.2026', 'New']
+5: ['5', '16.01.2026 1:22:57', 'Consultation', 'Why doesn't the code use FastAPI?', '16.01.2026', 'New']
+6: ['6', '16.01.2026 4:17:59', 'Consultation', 'Why is the code so poorly typed?', '16.01.2026', 'New']
 
-⚠️  Пропущено 0 строк без категории
-✅ Найдено 6 заявок с описанием для анализа LLM
-🤖 Начинаю анализ 6 заявок через LLM...
-Анализирую следующую заявку...
-Анализирую следующую заявку...
-Анализирую следующую заявку...
-Анализирую следующую заявку...
-Анализирую следующую заявку...
-Анализирую следующую заявку...
-✅ Проанализировано 6 из 6 заявок
+⚠️  Skipped 0 rows without category
+✅ Found 6 requests with description for LLM analysis
+🤖 Starting analysis of 6 requests via LLM...
+Analyzing next request...
+Analyzing next request...
+Analyzing next request...
+Analyzing next request...
+Analyzing next request...
+Analyzing next request...
+✅ Analyzed 6 out of 6 requests
 
 ╭──────────────────────╮
-│ 📈 Статистика заявок │
+│ 📈 Request Statistics │
 ╰──────────────────────╯
 ╭──────────────┬────────────┬─────────╮
-│ Категория    │ Количество │ Процент │
+│ Category     │ Count      │ Percent │
 ├──────────────┼────────────┼─────────┤
-│ Консультация │          4 │   66.7% │
-│ Техподдержка │          2 │   33.3% │
+│ Consultation │          4 │   66.7% │
+│ Tech Support │          2 │   33.3% │
 ╰──────────────┴────────────┴─────────╯
 
 ╭──────────────────────────────────────────────────────────────╮
-│  Всего заявок                6                               │
-│  Уникальных категорий        2                               │
-│  Самая популярная категория  Консультация (4 заявок, 66.7%)  │
+│  Total requests              6                               │
+│  Unique categories           2                               │
+│  Most popular category      Consultation (4 requests, 66.7%) │
 ╰──────────────────────────────────────────────────────────────╯
 
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│🤖Анализ LLM                                                                  │
+│🤖 LLM Analysis                                                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
-🟡  Заявка #2 (ID: 1)
-  Категория        Техподдержка
-  Дата             15.01.2026 8:06:16
-  Выбор            Почему io запросы не асинхронные?  
-  Приоритет        СРЕДНИЙ
-  Время анализа    5.01 сек
-   📝 Суть: Пользователь спрашивает, почему I/O запросы не выполняются асинхронно.
-   💡 Рекомендация: Уточните контекст: какая именно система или библиотека используется, и в каком случае наблюдается синхронное выполнение I/O. Предоставьте пример кода или логов для дальнейшего анализа.
+🟡  Request #2 (ID: 1)
+  Category        Tech Support
+  Date            15.01.2026 8:06:16
+  Choice          Why are io requests not asynchronous?
+  Priority        MEDIUM
+  Analysis time   5.01 sec
+   📝 Summary: User asks why I/O requests are not executed asynchronously.
+   💡 Recommendation: Clarify context: which specific system or library is used, and in which case synchronous I/O execution is observed. Provide code example or logs for further analysis.
 
-🟢  Заявка #3 (ID: 2)
-  Категория        Консультация
-  Дата             16.01.2026 0:31:32
-  Выбор            Что такое ошибка с кодом 401  
-  Приоритет        НИЗКИЙ
-  Время анализа    2.37 сек
-   📝 Суть: Пользователь запрашивает информацию о значении ошибки с кодом 401.
-   💡 Рекомендация: Предоставить пользователю краткое объяснение, что ошибка 401 означает отсутствие авторизации, и предложить ссылку на документацию или руководство по устранению этой ошибки.   
+🟢  Request #3 (ID: 2)
+  Category        Consultation
+  Date            16.01.2026 0:31:32
+  Choice          What is error with code 401
+  Priority        LOW
+  Analysis time   2.37 sec
+   📝 Summary: User requests information about the meaning of error code 401.
+   💡 Recommendation: Provide the user with a brief explanation that error 401 indicates lack of authorization, and offer a link to documentation or troubleshooting guide.
 
-🟢  Заявка #4 (ID: 3)
-  Категория        Техподдержка
-  Дата             16.01.2026 0:31:41
-  Выбор            Как получить JSON файл для Service Account  
-  Приоритет        НИЗКИЙ
-  Время анализа    2.69 сек
-   📝 Суть: Пользователь запрашивает информацию о получении JSON файла для Service Account.
-   💡 Рекомендация: Предоставить пользователю инструкцию или ссылку на документацию по созданию и получению JSON файла для Service Account. Например, указать шаги в Google Cloud Console: 'IAM &  
-Admin' -> 'Service Accounts' -> 'Create Service Account' -> 'Create Key' -> 'JSON'.
+🟢  Request #4 (ID: 3)
+  Category        Tech Support
+  Date            16.01.2026 0:31:41
+  Choice          How to get JSON file for Service Account
+  Priority        LOW
+  Analysis time   2.69 sec
+   📝 Summary: User requests information on obtaining JSON file for Service Account.
+   💡 Recommendation: Provide the user with instructions or link to documentation on creating and obtaining JSON file for Service Account. For example, specify steps in Google Cloud Console: 'IAM & Admin' -> 'Service Accounts' -> 'Create Service Account' -> 'Create Key' -> 'JSON'.
 
-🟢  Заявка #5 (ID: 4)
-  Категория        Консультация
-  Дата             16.01.2026 0:32:49        
-  Выбор            Почему код такой кривой?  
-  Приоритет        НИЗКИЙ
-  Время анализа    2.08 сек
-   📝 Суть: Пользователь запрашивает консультацию по поводу качества кода.
-   💡 Рекомендация: Уточнить у пользователя, какой именно код вызывает вопросы, и предоставить развернутый ответ или направить к соответствующей документации.
+🟢  Request #5 (ID: 4)
+  Category        Consultation
+  Date            16.01.2026 0:32:49
+  Choice          Why is the code so messy?
+  Priority        LOW
+  Analysis time   2.08 sec
+   📝 Summary: User requests consultation regarding code quality.
+   💡 Recommendation: Ask the user which specific code raises questions, and provide detailed answer or direct to relevant documentation.
 
-🟢  Заявка #6 (ID: 5)
-  Категория        Консультация
-  Дата             16.01.2026 1:22:57
-  Выбор            Почему код не использует не FastAPI?  
-  Приоритет        НИЗКИЙ
-  Время анализа    1.83 сек
-   📝 Суть: Пользователь спрашивает, почему код не использует FastAPI.
-   💡 Рекомендация: Предоставить информацию о причинах выбора альтернативного фреймворка или предложить документацию по интеграции FastAPI, если это возможно.
+🟢  Request #6 (ID: 5)
+  Category        Consultation
+  Date            16.01.2026 1:22:57
+  Choice          Why doesn't the code use FastAPI?
+  Priority        LOW
+  Analysis time   1.83 sec
+   📝 Summary: User asks why the code doesn't use FastAPI.
+   💡 Recommendation: Provide information about reasons for choosing alternative framework or suggest documentation on FastAPI integration if possible.
 
-🟢  Заявка #7 (ID: 6)
-  Категория        Консультация
-  Дата             16.01.2026 4:17:59
-  Приоритет        НИЗКИЙ
-  Время анализа    2.93 сек
-   📝 Суть: Пользователь запрашивает консультацию по поводу плохой типизации в коде.
-   💡 Рекомендация: Предоставить пользователю документацию или примеры правильной типизации в коде, а также предложить инструменты для анализа и улучшения типизации.
+🟢  Request #7 (ID: 6)
+  Category        Consultation
+  Date            16.01.2026 4:17:59
+  Priority        LOW
+  Analysis time   2.93 sec
+   📝 Summary: User requests consultation regarding poor typing in code.
+   💡 Recommendation: Provide the user with documentation or examples of proper typing in code, as well as suggest tools for analyzing and improving typing.
 
-Всего проанализировано заявок: 6
+Total analyzed requests: 6
 ╭─────────────────────────────╮
-│ ✅ Анализ завершен успешно! │
-│ Обработано заявок: 6        │
-│ LLM анализ:✅ Включен       │
+│ ✅ Analysis completed successfully! │
+│ Processed requests: 6       │
+│ LLM analysis:✅ Enabled     │
 ╰─────────────────────────────╯
 ```
 
 ## 🐳 Docker
 
-### Сборка образа
+### Build Image
 ```bash
-docker build -t telegram-bot-analytics .
+docker build -t google-sheets-llm-analyzer .
 ```
 
-### Запуск контейнера
+### Run Container
 ```bash
-# 1. Базовый запуск (использует Google Sheets API)
-docker run --rm -t --env-file .env telegram-bot-analytics
+# 1. Basic run (uses Google Sheets API)
+docker run --rm -t --env-file .env google-sheets-llm-analyzer
 
-# 2. С LLM-анализом
-docker run --rm -t --env-file .env telegram-bot-analytics python main.py --api --llm
+# 2. With LLM analysis
+docker run --rm -t --env-file .env google-sheets-llm-analyzer python main.py --api --llm
 
-# 3. Только тест подключений
-docker run --rm -t --env-file .env telegram-bot-analytics python main.py --api --test
+# 3. Connection test only
+docker run --rm -t --env-file .env google-sheets-llm-analyzer python main.py --api --test
 
-# 4. С кастомными переменными окружения
-docker run --rm -t -e SPREADSHEET_ID="ваш_id_таблицы_здесь" -e GOOGLE_CREDENTIALS_BASE64="ваш_base64_кодированный_json_здесь" telegram-bot-analytics
+# 4. With custom environment variables
+docker run --rm -t -e SPREADSHEET_ID="your_spreadsheet_id_here" -e GOOGLE_CREDENTIALS_BASE64="your_base64_encoded_json_here" google-sheets-llm-analyzer
 
-# 5. Анализ локального CSV-файла
-docker run --rm -t -v "$(pwd)/data.csv:/app/mock_data.csv" telegram-bot-analytics python main.py --csv mock_data.csv
+# 5. Analyze local CSV file
+docker run --rm -t -v "$(pwd)/data.csv:/app/mock_data.csv" google-sheets-llm-analyzer python main.py --csv mock_data.csv
 
-# 6. Интерактивный режим для отладки
-docker run -it --rm --env-file .env telegram-bot-analytics /bin/sh
+# 6. Interactive mode for debugging
+docker run -it --rm --env-file .env google-sheets-llm-analyzer /bin/sh
 
-# 7. Запуск с отладкой
-docker run --rm -t --env-file .env telegram-bot-analytics python main.py --api --llm --raw --debug
+# 7. Run with debugging
+docker run --rm -t --env-file .env google-sheets-llm-analyzer python main.py --api --llm --raw --debug
 ```
 
-## 🔧 Разработка
+## 🔧 Development
 
-### Установка для разработки
+### Development Installation
 ```bash
-pip install -e ".[dev]"
+# Install project with development dependencies
+poetry install
+
+# Activate virtual environment
+poetry shell
+
+# OR run commands directly without activation
+poetry run python main.py --api
 ```
 
-### Форматирование кода
+### Code Formatting
 ```bash
-black .
-flake8
-mypy
-isort
+# Format code and check
+poetry run ruff format .
+poetry run ruff check .
+
+# Type checking
+poetry run mypy .
+
+# OR run all checks at once
+poetry run ruff check --fix .
+poetry run mypy .
 ```
 
-## 📁 Структура проекта
+## 📁 Project Structure
 ```
-telegram_bot_analytics/
-├── config.py                    # Конфигурация с Pydantic
-├── main.py                      # Основной скрипт
-├── src/                         # Исходный код
-│   ├── __init__.py              # Пакетный файл
-│   ├── google_sheets_client.py  # Клиент Google Sheets
-│   ├── data_analyzer.py         # Анализ данных
-│   └── llm_processor.py         # Интеграция с LLM
-├── scripts/                     # Вспомогательные скрипты
-│   └── encode_credentials.py    # Скрипт для кодирования JSON в base64     
-├── Dockerfile                   # Конфигурация Docker
-└── pyproject.toml               # Зависимости Python
+google_sheets_llm_analyzer/
+├── config.py                    # Configuration with Pydantic
+├── main.py                      # Main script
+├── src/                         # Source code
+│   ├── __init__.py              # Package file
+│   ├── google_sheets_client.py  # Google Sheets client
+│   ├── data_analyzer.py         # Data analysis
+│   └── llm_processor.py         # LLM integration
+├── scripts/                     # Utility scripts
+│   └── encode_credentials.py    # Script for encoding JSON to base64
+├── Dockerfile                   # Docker configuration
+├── pyproject.toml               # Poetry configuration and dependencies
+├── poetry.lock                  # Locked dependencies (generated by Poetry)
+└── .env.example                 # Environment variables template
 ```
 
-## 🔐 Безопасность
+## 🔐 Security
 
-- Все секреты хранятся в `.env`
-- Используются Service Accounts с минимальными правами
-- API ключи можно легко заменить
+- All secrets stored in `.env`
+- Service Accounts with minimal privileges used
+- API keys can be easily replaced
 
-## 🐛 Поиск и решение проблем
+## 🐛 Troubleshooting
 
-### Ошибка доступа к Google Sheets
+### Google Sheets Access Error
 ```
-✗ Ошибка подключения: <HttpError 403>
+✗ Connection error: <HttpError 403>
 ```
-**Решение:** Убедитесь, что:
-1. Service Account имеет доступ к таблице
-2. GOOGLE_CREDENTIALS_BASE64 корректно закодирован
-3. SPREADSHEET_ID указан правильно
+**Solution:** Ensure that:
+1. Service Account has access to the spreadsheet
+2. GOOGLE_CREDENTIALS_BASE64 is correctly encoded
+3. SPREADSHEET_ID is specified correctly
 
-### Ошибка LLM
+### LLM Error
 ```
-✗ Ошибка подключения к LLM: Incorrect API key
+✗ LLM connection error: Incorrect API key
 ```
-**Решение:** Проверьте OPENROUTER_API_KEY в .env
+**Solution:** Check OPENROUTER_API_KEY in .env
 
-### Пустые данные
+### Empty Data
 ```
-Нет данных для анализа
+No data for analysis
 ```
-**Решение:** Проверьте, что таблица содержит данные и SHEET_NAME указан правильно
+**Solution:** Check that spreadsheet contains data and SHEET_NAME is specified correctly
 
-## 📝 Лицензия
+## 📝 License
 
 MIT License

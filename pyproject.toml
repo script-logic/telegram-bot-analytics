@@ -1,42 +1,67 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
-[project]
-name = "telegram-bot-analytics"
+[tool.poetry]
+name = "google-sheets-llm-analyzer"
 version = "1.0.0"
-description = "Анализ заявок из Telegram бота с интеграцией Google Sheets и LLM"
-authors = [{name = "script-logic", email = "dev.scriptlogic@gmail.com"}]
+description = "LLM-integrated Google Sheets data processing via API and analysis toolkit"
+authors = ["script-logic <dev.scriptlogic@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-    "google-auth>=2.23.0",
-    "google-auth-oauthlib>=1.0.0",
-    "google-auth-httplib2>=0.1.0",
-    "google-api-python-client>=2.108.0",
-    "openai>=1.6.0",
-    "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
-    "rich>=13.0.0",
+license = "MIT"
+homepage = "https://github.com/script-logic/google-sheets-llm-analyzer"
+repository = "https://github.com/script-logic/google-sheets-llm-analyzer"
+documentation = "https://github.com/script-logic/google-sheets-llm-analyzer"
+keywords = ["google-sheets", "llm", "data-analysis", "openai", "automation"]
+classifiers = [
+    "Topic :: Office/Business",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "black>=25.1.0",
-    "flake8>=7.1.0",
-    "mypy>=1.15.0",
-    "isort>=5.13.2",
-]
+[tool.poetry.dependencies]
+python = ">=3.11"
+"google-api-python-client" = ">=2.108.0"
+"google-auth" = ">=2.23.0"
+"google-auth-httplib2" = ">=0.1.0"
+"google-auth-oauthlib" = ">=1.0.0"
+openai = ">=1.6.0"
+pydantic = ">=2.5.0"
+"pydantic-settings" = ">=2.1.0"
+rich = ">=13.0.0"
 
-[tool.black]
+[tool.poetry.group.dev.dependencies]
+mypy = ">=1.15.0"
+ruff = ">=0.4.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py311"
 line-length = 79
-target-version = ['py38']
+format.quote-style = "double"
+lint.select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C4",
+    "UP",
+    "RUF",
+]
+exclude = [
+    ".venv/",
+    "__pycache__/",
+    ".git/",
+    "*.pyc",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["google_sheets_llm_analyzer"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 warn_return_any = false
 disable_error_code = ["import-untyped"]
-
-[project.urls]
-"Homepage" = "https://github.com/script-logic/telegram-bot-analytics"
-"Bug Tracker" = "https://github.com/script-logic/telegram-bot-analytics/issues"

@@ -1,52 +1,58 @@
 """
-Анализ данных из Google Sheets.
-Подсчет статистики, подготовка данных для LLM.
+Data analysis from Google Sheets.
+Statistics calculation, data preparation for LLM.
 """
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 
 @dataclass
 class AnalysisResult:
-    """Результаты анализа данных."""
+    """Data analysis results."""
 
     total_requests: int
     total_rows: int
-    category_counts: Dict[str, int]
+    category_counts: dict[str, int]
     most_common_category: str
     most_common_count: int
-    raw_data: List[List[Any]]
+    raw_data: list[list[Any]]
 
     @property
     def has_data(self) -> bool:
-        """Есть ли данные для анализа."""
+        """Is there data for analysis?"""
         return self.total_requests > 0
 
     @property
-    def categories_sorted(self) -> List[Tuple[str, int]]:
-        """Категории, отсортированные по количеству (по убыванию)."""
+    def categories_sorted(self) -> list[tuple[str, int]]:
+        """Categories sorted by count (descending)."""
         return sorted(
             self.category_counts.items(), key=lambda x: x[1], reverse=True
         )
 
 
 class DataAnalyzer:
-    """Статистический анализатор данных из таблицы."""
+    """Statistical data analyzer for spreadsheet data."""
 
-    def __init__(self, category_column: int = 3):
+    def __init__(
+        self,
+        category_column: int = 3,
+    ):
         self.category_column = category_column
 
-    def analyze(self, data: List[List[Any]]) -> AnalysisResult:
+    def analyze(
+        self,
+        data: list[list[Any]],
+    ) -> AnalysisResult:
         """
-        Анализирует данные таблицы.
+        Analyzes table data.
 
         Args:
-            data: Список строк таблицы (первая строка - заголовки)
+            data: List of table rows (first row - headers)
 
         Returns:
-            AnalysisResult с результатами анализа
+            AnalysisResult with analysis results
         """
         if len(data) <= 1:
             return AnalysisResult(
@@ -76,7 +82,8 @@ class DataAnalyzer:
             else:
                 skipped_rows.append(i)
 
-        print(f"⚠️  Пропущено {len(skipped_rows)} строк без категории")
+        if len(skipped_rows):
+            print(f"⚠️  Skipped {len(skipped_rows)} rows without category")
 
         if not categories:
             return AnalysisResult(
@@ -107,24 +114,25 @@ class DataAnalyzer:
         )
 
     def get_requests_for_llm(
-        self, data: List[List[Any]]
-    ) -> List[Dict[str, Any]]:
+        self,
+        data: list[list[Any]],
+    ) -> list[dict[str, Any]]:
         """
-        Подготавливает данные для анализа LLM.
+        Prepares data for LLM analysis.
 
         Args:
-            data: Сырые данные таблицы
+            data: Raw table data
 
         Returns:
-            Список словарей с данными заявок
+            List of dictionaries with request data
         """
-        requests: List = []
+        requests: list = []
 
         if len(data) <= 1:
             return requests
 
-        # Структура таблицы:
-        # A: Номер, B: Дата, C: Категория, D: Выбор
+        # Table structure:
+        # A: Number, B: Date, C: Category, D: Choice
         for i, row in enumerate(data[1:], start=2):
             request_data = {
                 "row_number": i,
@@ -134,7 +142,7 @@ class DataAnalyzer:
                 "choice": row[3] if len(row) > 3 else "",
             }
 
-            # Очищаем строковые значения
+            # Clean string values
             for key in request_data:
                 str_clean = request_data[key]
                 if isinstance(str_clean, str):
@@ -142,16 +150,16 @@ class DataAnalyzer:
                 elif request_data[key] is None:
                     request_data[key] = ""
 
-            # Добавляем только если есть описание
+            # Add only if there's a description
             if request_data["choice"]:
                 requests.append(request_data)
 
         if requests:
             print(
-                f"✅ Найдено {len(requests)} заявок с описанием для"
-                " анализа LLM"
+                f"✅ Found {len(requests)} requests with description for"
+                " LLM analysis"
             )
         else:
-            print("ℹ️  Не найдено заявок с описанием для анализа LLM")
+            print("❌  No requests with description found for LLM analysis")
 
         return requests

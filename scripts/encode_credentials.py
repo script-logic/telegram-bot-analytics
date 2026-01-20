@@ -1,6 +1,6 @@
 """
-Скрипт для кодирования Google Service Account JSON в base64.
-Упрощает настройку credentials для .env файла.
+Script for encoding Google Service Account JSON to base64.
+Simplifies credentials setup for .env file.
 """
 
 import base64
@@ -10,26 +10,26 @@ from pathlib import Path
 
 
 def print_usage():
-    """Выводит справку по использованию."""
-    print("📦 Кодировщик Google Service Account JSON в Base64")
-    print("\nИспользование:")
-    print("  python encode_credentials.py <путь_к_json_файлу>")
-    print("\nПримеры:")
+    """Displays usage help."""
+    print("📦 Google Service Account JSON to Base64 Encoder")
+    print("\nUsage:")
+    print("  python encode_credentials.py <path_to_json_file>")
+    print("\nExamples:")
     print("  python encode_credentials.py credentials/service-account.json")
     print(
         "  python encode_credentials.py"
         " ~/Downloads/my-project-credentials.json"
     )
-    print("\nКак получить JSON файл:")
-    print("  1. Перейдите в Google Cloud Console")
-    print("  2. Создайте Service Account")
-    print("  3. Скачайте JSON ключ")
-    print("\nПосле кодирования добавьте вывод в .env файл:")
-    print("  GOOGLE_CREDENTIALS_BASE64=ваша_base64_строка")
+    print("\nHow to get JSON file:")
+    print("  1. Go to Google Cloud Console")
+    print("  2. Create Service Account")
+    print("  3. Download JSON key")
+    print("\nAfter encoding add output to .env file:")
+    print("  GOOGLE_CREDENTIALS_BASE64=your_base64_string")
 
 
 def validate_json(data: dict) -> bool:
-    """Проверяет, что JSON является валидным сервисным аккаунтом."""
+    """Validates that JSON is a valid service account."""
     required_fields = [
         "type",
         "project_id",
@@ -39,17 +39,16 @@ def validate_json(data: dict) -> bool:
         "client_id",
     ]
 
-    # Проверяем наличие обязательных полей
+    # Check required fields
     for field in required_fields:
         if field not in data:
-            print(f"❌ Отсутствует обязательное поле: {field}")
+            print(f"❌ Missing required field: {field}")
             return False
 
-    # Проверяем тип
+    # Check type
     if data.get("type") != "service_account":
         print(
-            f"❌ Неверный тип: {data.get('type')} (ожидается"
-            " 'service_account')"
+            f"❌ Invalid type: {data.get('type')} (expected 'service_account')"
         )
         return False
 
@@ -57,100 +56,112 @@ def validate_json(data: dict) -> bool:
 
 
 def main():
-    """Основная функция скрипта."""
+    """Main script function."""
     if len(sys.argv) != 2:
         print_usage()
         sys.exit(1)
 
     json_path = Path(sys.argv[1])
 
-    # Проверяем существование файла
+    # Check if file exists
     if not json_path.exists():
-        print(f"❌ Файл не найден: {json_path}")
-        print("   Проверьте путь к файлу")
+        print(f"❌ File not found: {json_path}")
+        print("   Check file path")
         sys.exit(1)
 
-    # Проверяем расширение
+    # Check extension
     if json_path.suffix.lower() != ".json":
         print(
-            f"⚠️  Предупреждение: файл имеет расширение {json_path.suffix},"
-            " ожидается .json"  # fmt: off
+            f"⚠️  Warning: file has extension {json_path.suffix},"
+            " expected .json"
         )
 
     try:
-        # Читаем и парсим JSON
+        # Read and parse JSON
         with open(
             json_path,
-            "r",
             encoding="utf-8",
         ) as f:
             json_data = json.load(f)
 
-        # Валидируем JSON
+        # Validate JSON
         if not validate_json(json_data):
-            print("\n❌ Файл не является валидным Google Service Account JSON")
+            print("\n❌ File is not a valid Google Service Account JSON")
             sys.exit(1)
 
-        # Преобразуем JSON в строку (минифицированную)
+        # Convert JSON to string (minified)
         json_str = json.dumps(
             json_data,
-            separators=(",", ":"),
+            separators=(
+                ",",
+                ":",
+            ),
         )
 
-        # Кодируем в base64
+        # Encode to base64
         base64_str = base64.b64encode(json_str.encode("utf-8")).decode("ascii")
 
-        # Выводим результат
-        print("\n" + "=" * 70)
-        print("✅ GOOGLE_CREDENTIALS_BASE64 успешно сгенерирован!")
-        print("=" * 70)
-
-        print("\n📋 Информация о Service Account:")
-        print(f"   Project: {json_data.get('project_id', 'Не указан')}")
-        print(f"   Client Email: {json_data.get('client_email', 'Не указан')}")
-        print(
-            f"   Key ID: {json_data.get('private_key_id',
-                                        'Не указан')[:20]}..."
+        # Display result
+        project_id = json_data.get(
+            "project_id",
+            "Not specified",
+        )
+        client_email = json_data.get(
+            "client_email",
+            "Not specified",
+        )
+        private_key_id = json_data.get(
+            "private_key_id",
+            "Not specified",
         )
 
-        print(f"\n📏 Длина Base64 строки: {len(base64_str)} символов")
+        print("\n" + "=" * 70)
+        print("✅ GOOGLE_CREDENTIALS_BASE64 successfully generated!")
+        print("=" * 70)
 
-        print("\n🔐 Base64 строка для .env файла:")
+        print("\n📋 Service Account information:")
+        print(f"   Project: {project_id}")
+        print(f"   Client Email: {client_email}")
+        print(f"   Key ID: {private_key_id[:20]}...")
+
+        print(f"\n📏 Base64 string length: {len(base64_str)} characters")
+
+        print("\n🔐 Base64 string for .env file:")
         print("-" * 70)
         print(base64_str)
         print("-" * 70)
 
-        print("\n📝 Инструкция по добавлению в .env:")
-        print("1. Откройте .env файл в редакторе")
-        print("2. Найдите строку GOOGLE_CREDENTIALS_BASE64=")
-        print("3. Замените значение на строку выше")
-        print("4. Сохраните файл")
+        print("\n📝 Instructions for adding to .env:")
+        print("1. Open .env file in editor")
+        print("2. Find line GOOGLE_CREDENTIALS_BASE64=")
+        print("3. Replace value with string above")
+        print("4. Save file")
 
-        print("\n✨ Пример строки в .env:")
+        print("\n✨ Example line in .env:")
         print(f'GOOGLE_CREDENTIALS_BASE64="{base64_str}"')
 
-        # Проверка декодирования
-        print("\n🧪 Проверка декодирования...")
+        # Decoding test
+        print("\n🧪 Testing decoding...")
         try:
             decoded = base64.b64decode(base64_str).decode("utf-8")
             decoded_json = json.loads(decoded)
             if decoded_json:
-                print("✅ Base64 успешно декодируется в валидный JSON")
+                print("✅ Base64 successfully decodes to valid JSON")
         except Exception as e:
-            print(f"❌ Ошибка при проверке: {e}")
+            print(f"❌ Error during test: {e}")
 
         print("\n" + "=" * 70)
 
     except json.JSONDecodeError as e:
-        print(f"❌ Ошибка парсинга JSON: {e}")
-        print("   Убедитесь, что файл содержит валидный JSON")
+        print(f"❌ JSON parsing error: {e}")
+        print("   Ensure file contains valid JSON")
         sys.exit(1)
     except UnicodeDecodeError:
-        print("❌ Ошибка кодирования файла")
-        print("   Убедитесь, что файл в кодировке UTF-8")
+        print("❌ File encoding error")
+        print("   Ensure file is UTF-8 encoded")
         sys.exit(1)
     except Exception as e:
-        print(f"❌ Неожиданная ошибка: {e}")
+        print(f"❌ Unexpected error: {e}")
         sys.exit(1)
 
 

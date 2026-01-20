@@ -1,7 +1,7 @@
-Номер заявки,Дата и время,Категория,Выбор,Дата обработки,Статус
-1,15.01.2026 8:06:16,Техподдержка,Почему io запросы не асинхронные?,15.01.2026,Новая
-2,16.01.2026 0:31:32,Консультация,Что такое ошибка с кодом 401,16.01.2026,Новая
-3,16.01.2026 0:31:41,Техподдержка,Как получить JSON файл для Service Account,16.01.2026,Новая
-4,16.01.2026 0:32:49,Консультация,Почему код такой кривой?,16.01.2026,Новая
-5,16.01.2026 1:22:57,Консультация,Почему код не использует не FastAPI?,16.01.2026,Новая
-6,16.01.2026 4:17:59,Техподдержка,Почему код так плохо типизирован?,16.01.2026,Новая
+Request ID, Date and Time, Category, Choice, Processing Date, Status
+1,15.01.2026 8:06:16,Tech Support,Why are io requests not asynchronous?,15.01.2026,New
+2,16.01.2026 0:31:32,Consultation,What is error with code 401,16.01.2026,New
+3,16.01.2026 0:31:41,Tech Support,How to get JSON file for Service Account,16.01.2026,New
+4,16.01.2026 0:32:49,Consultation,Why is the code so messy?,16.01.2026,New
+5,16.01.2026 1:22:57,Consultation,Why doesn't the code use FastAPI?,16.01.2026,New
+6,16.01.2026 4:17:59,Tech Support,Why is the code so poorly typed?,16.01.2026,New 

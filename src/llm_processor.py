@@ -1,21 +1,26 @@
 """
-Интеграция с LLM для анализа текста заявок.
-Поддерживает OpenRouter и OpenAI API.
+LLM integration for text request analysis.
+Supports OpenRouter and OpenAI API.
 """
 
 import json
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from openai import APIConnectionError, APIError, OpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    APIError,
+    OpenAI,
+    RateLimitError,
+)
 
 from config import config
 
 
 @dataclass
 class LLMAnalysis:
-    """Результат анализа LLM."""
+    """LLM analysis result."""
 
     priority: str
     summary: str
@@ -25,23 +30,31 @@ class LLMAnalysis:
 
     @property
     def priority_emoji(self) -> str:
-        """Возвращает эмодзи для приоритета."""
-        emoji_map = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+        """Returns emoji for priority."""
+        emoji_map = {
+            "high": "🔴",
+            "medium": "🟡",
+            "low": "🟢",
+        }
         return emoji_map.get(self.priority.lower(), "⚪")
 
     @property
     def priority_text(self) -> str:
-        """Возвращает текст приоритета на русском."""
-        text_map = {"high": "ВЫСОКИЙ", "medium": "СРЕДНИЙ", "low": "НИЗКИЙ"}
-        return text_map.get(self.priority.lower(), "НЕИЗВЕСТНО")
+        """Returns priority text."""
+        text_map = {
+            "high": "HIGH",
+            "medium": "MEDIUM",
+            "low": "LOW",
+        }
+        return text_map.get(self.priority.lower(), "UNKNOWN")
 
 
 class LLMProcessor:
-    """Процессор для работы с LLM."""
+    """Processor for working with LLM."""
 
     def __init__(self):
         if config is None:
-            raise ValueError("Конфигурация не загружена")
+            raise ValueError("Configuration not loaded")
 
         self.config = config
 
@@ -60,25 +73,27 @@ class LLMProcessor:
                 max_retries=2,
             )
         except Exception as e:
-            print(f"⚠️  Ошибка инициализации LLM клиента: {e}")
+            print(f"⚠️  LLM client initialization error: {e}")
             self.client = None
 
     def is_available(self) -> bool:
-        """Доступен ли LLM для использования."""
+        """Is LLM available for use?"""
         return self._enabled and self.client is not None
 
     def analyze_request(
-        self, choice: str, category: str = ""
-    ) -> Optional[LLMAnalysis]:
+        self,
+        choice: str,
+        category: str = "",
+    ) -> LLMAnalysis | None:
         """
-        Анализирует описание заявки с помощью LLM.
+        Analyzes request description using LLM.
 
         Args:
-            choice: Текст заявки
-            category: Категория заявки
+            choice: Request text
+            category: Request category
 
         Returns:
-            LLMAnalysis или None в случае ошибки
+            LLMAnalysis or None in case of error
         """
         if not self.is_available():
             return None
@@ -89,47 +104,45 @@ class LLMProcessor:
         start_time = time.time()
 
         try:
-            # Системный промпт для анализа заявок.
-            # Захардкожен для возможности в дальнейшем
-            # формировать его динамически (с разными переменными)
+            # System prompt for request analysis.
+            # Hardcoded for now, can be made dynamic in the future
             system_prompt = """
-Ты — опытный специалист технической поддержки.
-Анализируй описание проблемы пользователя и предоставляй структурированный
-анализ.
+You are an experienced technical support specialist.
+Analyze user's problem description and provide structured analysis.
 
-Шаги анализа:
-1. Определи приоритет заявки (high/medium/low) на основе:
-    - HIGH: критические проблемы (система не работает, потеря данных, угрозы
-        безопасности)
-    - MEDIUM: важные проблемы с временным решением, вопросы по функционалу,
-    `   ошибки в некритичных компонентах
-    - LOW: информационные запросы, вопросы по документации, предложения по
-        улучшению
-2. Сформулируй краткую суть проблемы (1-2 предложения)
-3. Предложи рекомендацию по решению или следующий шаг
+Analysis steps:
+1. Determine request priority (high/medium/low) based on:
+    - HIGH: critical problems (system down, data loss, security threats)
+    - MEDIUM: important issues with temporary workarounds, functionality
+      questions, errors in non-critical components
+    - LOW: informational requests, documentation questions, improvement
+      suggestions
+2. Formulate brief summary of the problem (1-2 sentences)
+3. Provide solution recommendation or next step
 
-Формат ответа - строго JSON:
+Response format - strictly JSON:
 {
     "priority": "high|medium|low",
-    "summary": "краткая суть проблемы на русском языке",
-    "recommendation": "конкретная рекомендация по решению на русском языке"
+    "summary": "brief problem summary in English",
+    "recommendation": "specific solution recommendation in English"
 }
 
-Будь конкретным в рекомендациях. Если проблема требует срочного решения,
-укажи это."""
+Be specific in recommendations. If problem requires urgent solution, mention
+it."""
 
             user_prompt = f"""
-Заявка пользователя:
+User request:
 
 [
-Категория:
-{category if category else 'Не указана'}
+Category:
+{category if category else "Not specified"}
 
-Описание проблемы:
+Problem description:
 {choice}
 ]
 
-Проанализируй эту заявку согласно инструкциям выше."""
+Analyze this request according to instructions above."""
+
             if self.client:
                 response = self.client.chat.completions.create(
                     model=self.config.openrouter_model,
@@ -144,14 +157,13 @@ class LLMProcessor:
 
             content = response.choices[0].message.content
 
-            if content:
-                result = json.loads(content)
-
             if not content:
-                raise Exception("LLM вернула пустой ответ")
+                raise Exception("LLM returned empty response")
+
+            result = json.loads(content)
 
             processing_time = time.time() - start_time
-            print("Анализирую следующую заявку...")
+            print("Analyzing next request...")
 
             return LLMAnalysis(
                 priority=result.get("priority", "medium").lower(),
@@ -162,37 +174,38 @@ class LLMProcessor:
             )
 
         except json.JSONDecodeError as e:
-            print(f"❌ LLM вернул невалидный JSON: {e}")
+            print(f"❌ LLM returned invalid JSON: {e}")
             if config and config.debug:
-                print(f"   Ответ LLM: {content}")
+                print(f"   LLM response: {content}")
             return None
         except RateLimitError:
-            print("⚠️  Превышен лимит запросов к LLM API")
+            print("⚠️  LLM API rate limit exceeded")
             return None
         except APIConnectionError:
-            print("⚠️  Ошибка подключения к LLM API")
+            print("⚠️  LLM API connection error")
             return None
         except APIError as e:
-            print(f"⚠️  Ошибка LLM API: {e}")
+            print(f"⚠️  LLM API error: {e}")
             return None
         except Exception as e:
-            print(f"⚠️  Неожиданная ошибка при анализе LLM: {e}")
+            print(f"⚠️  Unexpected error in LLM analysis: {e}")
             return None
 
     def analyze_multiple_requests(
-        self, requests: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self,
+        requests: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """
-        Анализирует несколько заявок с ограничением скорости.
+        Analyzes multiple requests with rate limiting.
 
         Args:
-            requests: Список заявок для анализа
+            requests: List of requests for analysis
 
         Returns:
-            Список заявок с результатами анализа
+            List of requests with analysis results
         """
         if not self.is_available():
-            print("ℹ️  LLM анализ отключен (нет API ключа)")
+            print("❌  LLM analysis disabled (no API key)")
             return []
 
         if not requests:
@@ -201,10 +214,10 @@ class LLMProcessor:
         analyzed_requests = []
         total_requests = len(requests)
 
-        print(f"🤖 Начинаю анализ {total_requests} заявок через LLM...")
+        print(f"🤖 Starting analysis of {total_requests} requests via LLM...")
 
         for i, request in enumerate(requests, 1):
-            print(f"   Анализ заявки {i}/{total_requests}...", end="\r")
+            print(f"   Analyzing request {i}/{total_requests}...", end="\r")
 
             analysis = self.analyze_request(
                 choice=request.get("choice", ""),
@@ -215,37 +228,37 @@ class LLMProcessor:
                 request["llm_analysis"] = analysis
                 analyzed_requests.append(request)
 
-                # Небольшая задержка между запросами для избежания rate limits
+                # Small delay between requests to avoid rate limits
                 if i < total_requests:
                     time.sleep(0.5)
             else:
                 request["llm_analysis"] = None
 
         print(
-            f"✅ Проанализировано {len(analyzed_requests)} из {total_requests}"
-            " заявок"
+            f"✅ Analyzed {len(analyzed_requests)} out of {total_requests}"
+            " requests"
         )
 
         return analyzed_requests
 
     def test_connection(self) -> bool:
-        """Проверяет подключение к LLM API."""
+        """Tests connection to LLM API."""
         if not self._enabled:
-            print("ℹ️  LLM отключен (нет API ключа в конфигурации)")
+            print("❌  LLM disabled (no API key in configuration)")
             return False
 
         if not self.client:
-            print("❌ LLM клиент не инициализирован")
+            print("❌ LLM client not initialized")
             return False
 
         try:
-            # Простой запрос для проверки подключения
+            # Simple request to test connection
             response = self.client.chat.completions.create(
                 model=self.config.openrouter_model,
                 messages=[
                     {
                         "role": "user",
-                        "content": "Ответь одним словом: 'Работаю'",
+                        "content": "Reply with one word: 'Working'",
                     }
                 ],
                 max_tokens=10,
@@ -254,20 +267,20 @@ class LLMProcessor:
 
             result = response.choices[0].message.content
             print(
-                f"✅ Подключение к LLM успешно ({self.config.openrouter_model})"
+                f"✅ LLM connection successful: {self.config.openrouter_model}"
             )
-            print(f"   Ответ: {result}")
+            print(f"   Response: {result}")
             return True
 
         except RateLimitError:
-            print("❌ Превышен лимит запросов к LLM API")
+            print("❌ LLM API rate limit exceeded")
             return False
         except APIConnectionError:
-            print("❌ Ошибка подключения к LLM API. Проверьте сеть и API ключ")
+            print("❌ LLM API connection error. Check network and API key")
             return False
         except APIError as e:
-            print(f"❌ Ошибка LLM API: {e}")
+            print(f"❌ LLM API error: {e}")
             return False
         except Exception as e:
-            print(f"❌ Неожиданная ошибка при проверке LLM: {e}")
+            print(f"❌ Unexpected error testing LLM: {e}")
             return False

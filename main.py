@@ -1,21 +1,32 @@
 """
-Основной скрипт анализа заявок Telegram-бота.
-Интегрирует Google Sheets, анализ данных и LLM.
+Main script for Google Sheets data analysis.
+Integrates Google Sheets, data analysis, and LLM.
 """
 
 import argparse
 import sys
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 from rich.box import ROUNDED
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+)
 from rich.table import Table
 
-from config import config
-from src.data_analyzer import DataAnalyzer
+from config import (
+    AppConfig,
+    config,
+)
+from src.data_analyzer import (
+    AnalysisResult,
+    DataAnalyzer,
+)
 from src.google_sheets_client import (
     CSVReader,
     GoogleSheetsClient,
@@ -26,226 +37,468 @@ from src.llm_processor import LLMProcessor
 console = Console()
 
 
-def print_banner():
-    """Выводит баннер приложения."""
-    banner = "\n".join(
-        [
-            "📊 Telegram Bot Analytics",
-            "🔗 Интеграция с Google Sheets",
-            "💡 Статистический анализ заявок",
-            "🤖 AI Анализ",
-        ]
+PRIORITY_STYLES = {
+    "high": (
+        "🔴",
+        "bold red",
+    ),
+    "medium": (
+        "🟡",
+        "bold yellow",
+    ),
+    "low": (
+        "🟢",
+        "bold green",
+    ),
+}
+
+EPILOG = "\n".join(
+    [
+        "Usage examples:",
+        "  %(prog)s --api                # Google Sheets API analysis",
+        "  %(prog)s --api --llm          # API + LLM analysis",
+        "  %(prog)s --csv data.csv       # CSV file analysis",
+        "  %(prog)s --api --test         # Connection test only",
+        "  %(prog)s --api --llm --debug  # With debugging",
+    ]
+)
+
+BANNER = "\n".join(
+    [
+        "🤖 Google Sheets LLM Analyzer",
+        "📊 Statistical Data Analysis",
+    ],
+)
+
+
+def _create_config_info_table(current_config: AppConfig) -> Table:
+    """Forms config info table"""
+    table = Table(
+        show_header=False,
+        box=None,
     )
+    table.add_column(
+        "Parameter",
+        style="cyan",
+    )
+    table.add_column(
+        "Value",
+        style="green",
+    )
+
+    table.add_row(
+        "Google Sheet",
+        current_config.spreadsheet_id,
+    )
+    table.add_row(
+        "Sheet",
+        current_config.sheet_name,
+    )
+    table.add_row(
+        "Category Column",
+        f"Column {current_config.category_column}",
+    )
+    table.add_row(
+        "LLM Key",
+        "Provided" if current_config.is_llm_enabled else "Not provided",
+    )
+    table.add_row(
+        "Debug Mode",
+        "Yes" if current_config.debug else "No",
+    )
+    return table
+
+
+def _create_main_stats_table(result: AnalysisResult) -> Table:
+    """Forms main stats table"""
+    total = result.total_requests
+
+    table = Table(
+        show_header=True,
+        box=ROUNDED,
+    )
+
+    table.add_column(
+        "Category",
+        style="cyan",
+        no_wrap=True,
+    )
+    table.add_column(
+        "Count",
+        justify="right",
+        style="green",
+    )
+    table.add_column(
+        "Percentage",
+        justify="right",
+        style="yellow",
+    )
+
+    for category, count in result.categories_sorted:
+        percent = format_percentage(
+            count,
+            total,
+        )
+        table.add_row(
+            category,
+            str(count),
+            f"{percent}%",
+        )
+
+    return table
+
+
+def _create_summary_table(result: AnalysisResult) -> Table:
+    """Forms summary table"""
+    total = result.total_requests
+
+    table = Table(
+        show_header=False,
+        box=None,
+        expand=False,
+    )
+
+    table.add_column(
+        "Metric",
+        style="cyan",
+    )
+    table.add_column(
+        "Value",
+        style="green",
+    )
+
+    table.add_row(
+        "Total Requests",
+        str(result.total_requests),
+    )
+    table.add_row(
+        "Unique Categories",
+        str(len(result.category_counts)),
+    )
+
+    if result.most_common_category:
+        percent = format_percentage(
+            result.most_common_count,
+            total,
+        )
+        table.add_row(
+            "Most Popular Category",
+            f"[bold]{result.most_common_category}[/bold] "
+            f"({result.most_common_count} requests, "
+            f"{percent}%)",
+        )
+
+    return table
+
+
+def _create_details_table(
+    request: dict[str, Any],
+    analysis: Any,
+    style: str,
+) -> Table:
+    """Forms details table"""
+    table = Table(
+        show_header=False,
+        box=None,
+        padding=(
+            0,
+            2,
+        ),
+        expand=False,
+    )
+
+    table.add_column(
+        "Field",
+        style="dim",
+    )
+    table.add_column(
+        "Value",
+        style="white",
+    )
+
+    table.add_row(
+        "Category",
+        request.get(
+            "category",
+            "Not specified",
+        ),
+    )
+    table.add_row(
+        "Date",
+        request.get(
+            "date",
+            "Not specified",
+        ),
+    )
+    table.add_row(
+        "Choice",
+        request.get(
+            "choice",
+            "Not specified",
+        ),
+    )
+    table.add_row(
+        "Priority",
+        f"[{style}]{analysis.priority_text}[/{style}]",
+    )
+    table.add_row(
+        "Analysis Time",
+        f"{analysis.processing_time:.2f} sec",
+    )
+
+    return table
+
+
+def print_banner():
+    """Display application banner."""
     console.print(
-        Panel("", subtitle=banner, expand=True, style="bold blue"),
+        Panel(
+            "",
+            subtitle=BANNER,
+            expand=True,
+            style="bold blue",
+        ),
         justify="full",
     )
 
 
+def validate_config(current_config: AppConfig) -> None:
+    """If config is None -> sys.exit(1)."""
+    if current_config is None:
+        console.print(
+            "[red]❌ Error: Configuration not loaded[/red]\n"
+            "Check .env file existence and correctness",
+        )
+        sys.exit(1)
+
+
+def format_percentage(
+    count: int,
+    total: int,
+) -> str:
+    """Format percentage with one decimal place."""
+    if total == 0:
+        return "0.0%"
+    return f"{(count / total) * 100:.1f}%"
+
+
 def print_config_summary():
-    """Выводит сводку конфигурации."""
+    """Display configuration summary."""
     if not config:
-        console.print("[red]❌ Конфигурация не загружена[/red]")
+        console.print("[red]❌ Configuration not loaded[/red]")
         return
 
     console.print(
-        Panel.fit("[bold]Конфигурация системы[/bold]", border_style="cyan")
+        Panel.fit(
+            "[bold]System Configuration[/bold]",
+            border_style="cyan",
+        ),
     )
 
-    info_table = Table(show_header=False, box=None)
-    info_table.add_column("Параметр", style="cyan")
-    info_table.add_column("Значение", style="green")
+    info_table = _create_config_info_table(config)
 
-    info_table.add_row("Google Таблица", config.spreadsheet_id)
-    info_table.add_row("Лист", config.sheet_name)
-    info_table.add_row(
-        "Столбец категорий", f"Столбец {config.category_column}"
+    console.print(
+        info_table,
+        end="\n\n",
     )
-    info_table.add_row(
-        "LLM ключ", "Введён" if config.is_llm_enabled else "Не введён"
-    )
-    info_table.add_row("Режим отладки", "Да" if config.debug else "Нет")
-
-    console.print(info_table)
-    console.print()
 
 
-def print_statistics(result, llm_results: Optional[list] = None):
+def print_statistics(
+    result: AnalysisResult,
+    llm_results: list[dict[str, Any]] | None = None,
+):
     """
-    Выводит статистику в красивом формате.
+    Display statistics in a formatted way.
 
     Args:
-        result: Результат анализа DataAnalyzer
-        llm_results: Результаты анализа LLM
+        result: DataAnalyzer result
+        llm_results: LLM analysis results
     """
     if not result.has_data:
         console.print(
             Panel(
-                "[yellow]📭 Нет данных для анализа[/yellow]",
+                "[yellow]📭 No data for analysis[/yellow]",
                 border_style="yellow",
-            )
+            ),
+            end="\n\n",
         )
         return
 
     console.print(
         Panel(
-            "[bold]📈 Статистика заявок[/bold]",
+            "[bold]📈 Request Statistics[/bold]",
             expand=False,
             border_style="magenta",
-        )
+        ),
+        end="\n\n",
     )
 
-    stats_table = Table(show_header=True, box=ROUNDED)
-    stats_table.add_column("Категория", style="cyan", no_wrap=True)
-    stats_table.add_column("Количество", justify="right", style="green")
-    stats_table.add_column("Процент", justify="right", style="yellow")
+    stats_table = _create_main_stats_table(result)
 
-    total = result.total_requests
-
-    for category, count in result.categories_sorted:
-        percentage = (count / total) * 100 if total > 0 else 0
-        stats_table.add_row(category, str(count), f"{percentage:.1f}%")
-
-    console.print(stats_table)
-
-    console.print()
-    summary_table = Table(show_header=False, box=None, expand=False)
-    summary_table.add_column("Метрика", style="cyan")
-    summary_table.add_column("Значение", style="green")
-
-    summary_table.add_row("Всего заявок", str(result.total_requests))
-    summary_table.add_row(
-        "Уникальных категорий", str(len(result.category_counts))
+    console.print(
+        stats_table,
+        end="\n\n",
     )
 
-    if result.most_common_category:
-        percentage = (result.most_common_count / total) * 100
-        summary_table.add_row(
-            "Самая популярная категория",
-            f"[bold]{result.most_common_category}[/bold] "
-            f"({result.most_common_count} заявок, {percentage:.1f}%)",
-        )
+    summary_table = _create_summary_table(result)
 
-    console.print(Panel(summary_table, border_style="green", expand=False))
+    console.print(
+        Panel(
+            summary_table,
+            border_style="green",
+            expand=False,
+        ),
+        end="\n\n",
+    )
 
-    # Анализ LLM
+    # LLM Analysis
     if llm_results:
-        console.print()
-        console.print(Panel("[bold]🤖 Анализ LLM[/bold]", border_style="blue"))
+        console.print(
+            Panel(
+                "[bold]🤖 LLM Analysis[/bold]",
+                border_style="blue",
+                expand=False,
+            ),
+            end="\n\n",
+        )
 
         for request in llm_results:
-            if "llm_analysis" in request and request["llm_analysis"]:
+            if request.get("llm_analysis"):
                 analysis = request["llm_analysis"]
 
-                priority_styles = {
-                    "high": ("🔴", "bold red"),
-                    "medium": ("🟡", "bold yellow"),
-                    "low": ("🟢", "bold green"),
-                }
-
-                emoji, style = priority_styles.get(
-                    analysis.priority, ("⚪", "bold white")
+                emoji, style = PRIORITY_STYLES.get(
+                    analysis.priority,
+                    (
+                        "⚪",
+                        "bold white",
+                    ),
                 )
 
                 console.print(
-                    f"{emoji} [bold]Заявка #{request['row_number']}[/bold] "
-                    f"(ID: {request['id']})"
+                    f"{emoji} [bold]Request #{request['row_number']}[/bold] "
+                    f"(ID: {request['id']})",
+                    end="\n\n",
                 )
 
-                details = Table(
-                    show_header=False, box=None, padding=(0, 2), expand=False
-                )
-                details.add_column("Поле", style="dim")
-                details.add_column("Значение", style="white")
-
-                details.add_row(
-                    "Категория", request.get("category", "Не указана")
-                )
-                details.add_row("Дата", request.get("date", "Не указана"))
-                details.add_row("Выбор", request.get("choice", "Не указан"))
-                details.add_row(
-                    "Приоритет", f"[{style}]{analysis.priority_text}[/{style}]"
-                )
-                details.add_row(
-                    "Время анализа", f"{analysis.processing_time:.2f} сек"
+                details = _create_details_table(
+                    request,
+                    analysis,
+                    style,
                 )
 
-                console.print(details)
+                console.print(
+                    details,
+                    end="\n\n",
+                )
 
                 if analysis.summary:
                     console.print(
-                        "   [dim]📝 Суть:[/dim]"
-                        f" [italic]{analysis.summary}[/italic]"
+                        "   [dim]📝 Summary:[/dim]"
+                        f" [italic]{analysis.summary}[/italic]",
+                        end="\n\n",
                     )
 
                 if analysis.recommendation:
                     console.print(
-                        "   [dim]💡 Рекомендация:[/dim]"
-                        f" {analysis.recommendation}"
+                        "   [dim]💡 Recommendation:[/dim]"
+                        f" {analysis.recommendation}",
+                        end="\n\n",
                     )
 
-                console.print()
-
         console.print(
-            f"[dim]Всего проанализировано заявок: {len(llm_results)}[/dim]"
+            f"[dim]Total analyzed requests: {len(llm_results)}[/dim]",
+            end="\n\n",
         )
 
 
+@contextmanager
+def show_progress(description: str):
+    """Show progress"""
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            description,
+            total=None,
+        )
+        try:
+            yield progress, task
+            progress.update(
+                task,
+                completed=100,
+                description=f"✅ {description}",
+            )
+        except Exception:
+            progress.update(
+                task,
+                description=f"❌ {description} failed",
+            )
+            raise
+
+
 def main():
-    """Основная функция приложения."""
-    parser = argparse.ArgumentParser(
-        description="Анализ заявок из Telegram-бота с Google Sheets и LLM",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="\n".join(
-            [
-                "Примеры использования:",
-                "  %(prog)s --api                # Анализ Google Sheets API",
-                "  %(prog)s --api --llm          # Анализ через API + LLM",
-                "  %(prog)s --csv data.csv       # Анализ из CSV файла",
-                "  %(prog)s --api --test         # Только тест подключения",
-                "  %(prog)s --api --llm --debug  # С отладкой",
-            ]
-        ),
-    )
-
-    source_group = parser.add_mutually_exclusive_group(required=True)
-    source_group.add_argument(
-        "--api", action="store_true", help="Использовать Google Sheets API"
-    )
-    source_group.add_argument(
-        "--csv", type=str, metavar="ФАЙЛ", help="Использовать CSV-файл"
-    )
-
-    parser.add_argument(
-        "--llm", action="store_true", help="Включить анализ LLM"
-    )
-    parser.add_argument(
-        "--test", action="store_true", help="Только тест подключения"
-    )
-    parser.add_argument("--debug", action="store_true", help="Режим отладки")
-    parser.add_argument(
-        "--raw",
-        action="store_true",
-        help="Показать сырые данные (только с --debug)",
-    )
-
-    args = parser.parse_args()
-
-    if config is None:
-        console.print("[red]❌ Ошибка: Конфигурация не загружена[/red]")
-        console.print("Проверьте наличие и корректность .env файла")
-        sys.exit(1)
+    """Main application function."""
+    validate_config(config)
 
     print_banner()
     print_config_summary()
 
+    parser = argparse.ArgumentParser(
+        description="Google Sheets data analysis with LLM integration",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=EPILOG,
+    )
+
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument(
+        "--api",
+        action="store_true",
+        help="Use Google Sheets API",
+    )
+    source_group.add_argument(
+        "--csv",
+        type=str,
+        metavar="FILE",
+        help="Use CSV file",
+    )
+
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="Enable LLM analysis",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Connection test only",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Debug mode",
+    )
+    parser.add_argument(
+        "--raw",
+        action="store_true",
+        help="Show raw data (only with --debug)",
+    )
+
+    args = parser.parse_args()
+
     if args.test:
         console.print(
-            Panel("[bold]🔧 Тест подключения...[/bold]", border_style="yellow")
+            Panel(
+                "[bold]🔧 Connection test...[/bold]",
+                border_style="yellow",
+                expand=False,
+            ),
+            end="\n\n",
         )
 
         if args.api:
-            console.print("\n[bold]Testing Google Sheets...[/bold]")
+            console.print("[bold]Testing Google Sheets...[/bold]")
             try:
                 client = GoogleSheetsClient()
                 if client.test_connection():
@@ -263,97 +516,102 @@ def main():
         except Exception as e:
             console.print(f"[red]❌ LLM: {e}[/red]")
 
-        console.print("\n[green]✅ Тестирование завершено[/green]")
+        console.print("\n[green]✅ Testing completed[/green]")
         return
 
-    # Основной режим
+    # Main mode
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("Загрузка данных...", total=None)
-
+        with show_progress("Loading data...") as (
+            progress,
+            task,
+        ):
             if args.api:
                 try:
                     client = GoogleSheetsClient()
                     data = client.fetch_data()
                 except GoogleSheetsError as e:
-                    console.print(f"[red]❌ Ошибка Google Sheets: {e}[/red]")
+                    console.print(f"[red]❌ Google Sheets error: {e}[/red]")
                     if args.debug:
                         console.print_exception()
                     sys.exit(1)
             else:
-                # Либо используем файл CSV
+                # Use CSV file
                 if not Path(args.csv).exists():
-                    console.print(f"[red]❌ Файл не найден: {args.csv}[/red]")
+                    console.print(f"[red]❌ File not found: {args.csv}[/red]")
                     sys.exit(1)
 
                 try:
                     data = CSVReader.read_data(args.csv)
                 except Exception as e:
-                    console.print(f"[red]❌ Ошибка чтения CSV: {e}[/red]")
+                    console.print(f"[red]❌ CSV reading error: {e}[/red]")
                     sys.exit(1)
 
             progress.update(
-                task, completed=100, description="✅ Данные загружены"
+                task,
+                completed=100,
+                description="✅ Data loaded",
             )
 
         if args.raw and args.debug and data:
             console.print(
-                Panel("[bold]📄 Сырые данные[/bold]", border_style="dim")
+                Panel(
+                    "[bold]📄 Raw Data[/bold]",
+                    border_style="dim",
+                )
             )
             for i, row in enumerate(data):
                 console.print(f"[dim]{i}:[/dim] {row}")
 
             console.print()
 
-        # Анализируем статистику данных
+        # Analyze data statistics
         analyzer = DataAnalyzer(category_column=config.category_column)
         result = analyzer.analyze(data)
 
-        # Анализ LLM
+        # LLM Analysis
         llm_results = None
         if args.llm and config.is_llm_enabled:
-            with console.status("[bold green]Анализ LLM...[/bold green]"):
+            with console.status("[bold green]LLM analysis...[/bold green]"):
                 try:
                     llm_processor = LLMProcessor()
                     requests_for_llm = analyzer.get_requests_for_llm(data)
                     llm_results = llm_processor.analyze_multiple_requests(
-                        requests_for_llm
+                        requests_for_llm,
                     )
                 except Exception as e:
                     console.print(
-                        f"[yellow]⚠️  Ошибка LLM анализа: {e}[/yellow]"
+                        f"[yellow]⚠️  LLM analysis error: {e}[/yellow]",
                     )
                     if args.debug:
                         console.print_exception()
 
-        # Выводим результаты
+        # Display results
         console.print()
-        print_statistics(result, llm_results)
-
-        # Итог
-        llm_status = (
-            "✅ Включен"
-            if args.llm and llm_results
-            else "❌ Отключен\nВключить LLM: --llm"
+        print_statistics(
+            result,
+            llm_results,
         )
+
+        # Summary
+        if args.llm and llm_results:
+            llm_status = "✅ Enabled"
+        else:
+            llm_status = "❌ Disabled\nEnable LLM: --llm"
+
         console.print(
             Panel.fit(
-                f"[green]✅ Анализ завершен успешно![/green]\n"
-                f"Обработано заявок: {result.total_requests}\n"
-                f"LLM анализ: {llm_status}",
+                f"[green]✅ Analysis completed successfully![/green]\n"
+                f"Processed requests: {result.total_requests}\n"
+                f"LLM analysis: {llm_status}",
                 border_style="green",
-            )
+            ),
         )
 
     except KeyboardInterrupt:
-        console.print("\n[yellow]⚠️  Прервано пользователем[/yellow]")
+        console.print("\n[yellow]⚠️  Interrupted by user[/yellow]")
         sys.exit(130)
     except Exception as e:
-        console.print(f"[red]❌ Критическая ошибка: {e}[/red]")
+        console.print(f"[red]❌ Critical error: {e}[/red]")
         if args.debug:
             console.print_exception()
         sys.exit(1)
